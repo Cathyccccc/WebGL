@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>绘制线条/三角形</title>
+</head>
+<body>
+  <canvas height="400" width="400" id="canvas"></canvas>
+  <script type="notjs" id="vertex">
+    attribute vec2 a_position;
+    void main() {
+      gl_Position = vec4(a_position.x, a_position.y, 0.0, 1.0);
+      gl_PointSize = 10.0;
+    }
+  </script>
+  <script type="notjs" id="fragment">
+    void main() {
+      gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    }
+  </script>
+  <script>
+    // 创建webgl
+    const canvas = document.getElementById('canvas');
+    const gl = canvas.getContext('webgl');
+    if (!gl) {
+      console.log('浏览器不支持webgl');
+    }
+
+    // 创建着色器
+    function createShader(gl, type, source) {
+      const shader = gl.createShader(type); // 创建一个空的着色器
+      gl.shaderSource(shader, source); // 将着色器代码传给着色器
+      gl.compileShader(shader); // 编译着色器
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) { // 检查着色器是否编译成功
+        console.log('着色器编译失败：', gl.getShaderInfoLog(shader)); // 着色器日志
+        gl.deleteShader(shader); // 删除着色器
+        return;
+      }
+      return shader;
+    }
+
+    // 创建着色器程序
+    function createProgram(gl, vertex_shader, fragment_shader) {
+      const program = gl.createProgram(); // 创建一个空的程序
+      gl.attachShader(program, vertex_shader); // 绑定着色器程序
+      gl.attachShader(program, fragment_shader); // 绑定着色器程序
+      gl.linkProgram(program); // 连接着色器程序
+      if(!gl.getProgramParameter(program, gl.LINK_STATUS)) { // 判断着色器程序是否连接成功
+        console.log('着色器程序连接失败!');
+        return null;
+      }
+      return program;
+    }
+
+    const vertex_source = document.getElementById('vertex').innerText;
+    const fragment_source = document.getElementById('fragment').innerText;
+    const vertex_shader = createShader(gl, gl.VERTEX_SHADER, vertex_source);
+    const fragment_shader = createShader(gl, gl.FRAGMENT_SHADER, fragment_source);
+
+    const program = createProgram(gl, vertex_shader, fragment_shader);
+    gl.useProgram(program); // 使用着色器程序
+
+    const a_position = gl.getAttribLocation(program, "a_position"); // 获取变量a_position的存储地址
+    // 创建缓冲区对象（图形由多个点组成时，需要先将所有的顶点传入缓冲区，才能进行图形的绘制）
+    const buffer = gl.createBuffer(); // 创建一个空的缓冲区对象
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer); // 将缓冲区对象绑定到Array_buffer缓冲区
+    // 绘制线条
+    function drawLine() {
+      const points = [];
+      canvas.onmousedown = function(e) {
+        gl.clearColor(0, 0, 0, 1); // 清空画布（用一个颜色进行填充）
+        gl.clear(gl.COLOR_BUFFER_BIT); // 清空颜色缓冲区
+        // 将点在canvas坐标转为webgl坐标
+        const x = e.offsetX * 2.0 / e.target.clientWidth - 1.0;
+        const y = 1.0 - e.offsetY * 2.0 / e.target.clientHeight;
+        points.push(x, y);
+        // if (points.length % 2 === 0) {
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW); // 添加缓冲区数据
+          gl.vertexAttribPointer(a_position, 2, gl.FLOAT, false, 4 * 2, 0); // 将缓冲区数据分配给变量
+          gl.enableVertexAttribArray(a_position); // 激活attribute变量
+          // gl.drawArrays(gl.LINES, 0, points.length / 2); // 绘制单独的线段
+          // gl.drawArrays(gl.LINE_STRIP, 0, points.length / 2); // 绘制连接的线段
+          gl.drawArrays(gl.LINE_LOOP, 0, points.length / 2); // 绘制闭合的线段
+        // }
+      }
+    }
+    // drawLine();
+    // 绘制三角形
+    function drawTriangel() {
+      const points = [];
+      canvas.onmousedown = function (e) {
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT); // 清空颜色缓冲区
+        const x = e.offsetX * 2.0 / e.target.clientWidth - 1.0;
+        const y = 1.0 - e.offsetY * 2.0 / e.target.clientHeight;
+        points.push(x, y);
+        // if (points.length % 2 === 0) {
+          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+          gl.vertexAttribPointer(a_position, 2, gl.FLOAT, false, 4 * 2, 0);
+          gl.enableVertexAttribArray(a_position);
+          // gl.drawArrays(gl.TRIANGLES, 0, points.length / 2); // 绘制单独的三角形（这里除以2是因为2个数据为一组构成一个点，如果是3个数据为一组则除3）
+          // gl.drawArrays(gl.TRIANGLE_STRIP, 0, points.length / 2); // 绘制连续的三角形（构成多边形）
+          gl.drawArrays(gl.TRIANGLE_FAN, 0, points.length / 2); // 绘制连续的三角形（构成扇形）
+        // }
+      }
+    }
+    drawTriangel();
+  </script>
+</body>
+</html>

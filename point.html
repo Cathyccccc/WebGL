@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>绘制点</title>
+
+</head>
+
+<body>
+  <canvas id="canvas" width="400" height="400"></canvas>
+  <script type="notjs" id="vertex">
+    /*
+    varying 用于vertex传递变量给fragment使用，因此varying变量在两个着色器中的声明应保持一致
+    */
+    attribute vec4 a_Position;
+    attribute vec4 a_color;
+    varying vec4 v_color;
+    void main () {
+      gl_Position = a_Position;
+      gl_PointSize = 10.0;
+      v_color = a_color;
+    }
+  </script>
+  <script type="notjs" id="fragment">
+    precision mediump float;
+    varying vec4 v_color;
+    void main() {
+      gl_FragColor = v_color;
+    }
+  </script>
+  <script>
+    var canvas = document.getElementById('canvas');
+    var gl = canvas.getContext('webgl');
+
+    // 创建着色器（初始化）
+    function createShader(gl, type, source) {
+      var shader = gl.createShader(type); // 创建着色器
+      gl.shaderSource(shader, source); // 加载着色器资源（变量）
+      gl.compileShader(shader); // 编译着色器
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) { // 判断着色器是否编译成功
+        console.log('着色器创建失败');
+        return;
+      }
+      return shader;
+    }
+    var vertex_source = document.getElementById('vertex').innerText;
+    var fragment_source = document.getElementById('fragment').innerText;
+    var vertex_shader = createShader(gl, gl.VERTEX_SHADER, vertex_source);
+    var fragment_shader = createShader(gl, gl.FRAGMENT_SHADER, fragment_source);
+
+    // 创建程序
+    function createProgram(gl, vertex_shader, fragment_shader) {
+      var program = gl.createProgram(); // 创建一个空程序
+      gl.attachShader(program, vertex_shader); // 绑定着色器程序
+      gl.attachShader(program, fragment_shader);
+      gl.linkProgram(program); // 连接着色器程序
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) { // 判断着色器程序是否连接成功
+        console.log('着色器程序连接失败');
+        return;
+      }
+      return program;
+    }
+    const program = createProgram(gl, vertex_shader, fragment_shader)
+    gl.useProgram(program); // 使用着色器程序
+
+    // 绘制一个点
+    // function draw(gl) {
+    //   gl.clearColor(0.0, 0.0, 0.0, 1.0); // 清空画布（用一个颜色填充）
+    //   gl.clear(gl.COLOR_BUFFER_BIT); // 清空颜色缓冲区
+    //   gl.drawArrays(gl.POINTS, 0, 1); // 绘制
+    // }
+    // draw(gl);
+
+    // 动态绘制点
+    var a_Position = gl.getAttribLocation(program, "a_Position"); // 获取变量a_position的存储地址
+    var a_color = gl.getAttribLocation(program, "a_color");
+    function bindEvent() {
+      var points = [];
+      canvas.onmousedown = function (e) {
+        gl.clearColor(0, 0, 0, 1); // 清空画布（用一个颜色填充）
+        gl.clear(gl.COLOR_BUFFER_BIT); // 清空颜色缓冲区
+        const x = 2.0 * e.offsetX / e.target.clientWidth - 1.0;
+        const y = 1.0 - 2.0 * e.offsetY / e.target.clientHeight;
+        points.push({
+          x,
+          y,
+          color: {
+            r: Math.random(),
+            g: Math.random(),
+            b: Math.random(),
+          }
+        });
+        for (var i = 0; i < points.length; i++) {
+          var color = points[i].color;
+          gl.vertexAttrib3f(a_Position, points[i].x, points[i].y, 0.0);
+          gl.vertexAttrib3f(a_color, color.r, color.g, color.b);
+          gl.drawArrays(gl.POINTS, 0, 1)
+        }
+      }
+    }
+    bindEvent()
+  </script>
+</body>
+
+</html>

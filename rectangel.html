@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>绘制矩形</title>
+</head>
+<body>
+  <canvas id="canvas" width="400" height="400"></canvas>
+  <select name="drawType" id="draw-type">
+    <option value="TRIANGLES">三角形</option>
+    <option value="TRIANGLE_STRIP">三角带</option>
+    <option value="TRIANGLE_FAN">三角扇</option>
+  </select>
+  <script type="notjs" id="vertex">
+    attribute vec4 a_position;
+    attribute vec4 a_color;
+    varying vec4 v_color;
+    void main() {
+      gl_Position = a_position;
+      gl_PointSize = 10.0;
+      v_color = a_color;
+    }
+  </script>
+  <script type="notjs" id="fragment">
+    precision mediump float;
+    varying vec4 v_color;
+    void main() {
+      gl_FragColor = v_color;
+    }
+  </script>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const gl = canvas.getContext('webgl');
+
+    function createShader(gl, type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.log('着色器创建失败！', gl.getShaderInfoLog(shader));
+        return null;
+      }
+      return shader;
+    }
+
+    function createProgram(gl, vertex_shader, fragment_shader) {
+      const program = gl.createProgram();
+      gl.attachShader(program, vertex_shader);
+      gl.attachShader(program, fragment_shader);
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.log('着色器程序创建失败！')
+        return null;
+      }
+      return program;
+    }
+
+    const vertex_source = document.getElementById('vertex').innerText;
+    const fragment_source = document.getElementById('fragment').innerText;
+    const vertex_shader = createShader(gl, gl.VERTEX_SHADER, vertex_source);
+    const fragment_shader = createShader(gl, gl.FRAGMENT_SHADER, fragment_source);
+
+    const program = createProgram(gl, vertex_shader, fragment_shader);
+    gl.useProgram(program);
+
+    function createBuffer(points) {
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    }
+
+    const drawType = document.getElementById('draw-type');
+    let points = [
+      -0.5, 0.3, 1.0, 0.0, 0.0,
+      -0.5, -0.3, 1.0, 0.0, 0.0,
+      0.5, -0.3, 1.0, 0.0, 0.0,
+      -0.5, 0.3, 0.0, 1.0, 0.0,
+      0.5, -0.3, 0.0, 1.0, 0.0,
+      0.5, 0.3, 0.0, 1.0, 0.0,
+    ]
+
+    const a_position_location = gl.getAttribLocation(program, 'a_position');
+    const a_color_location = gl.getAttribLocation(program, 'a_color');
+    createBuffer();
+
+    function drawRectangle(points) {
+      gl.clearColor(1, 1, 1, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+      gl.vertexAttribPointer(a_position_location, 2, gl.FLOAT, false, 4 * 5, 0);
+      gl.vertexAttribPointer(a_color_location, 3, gl.FLOAT, false, 4 * 5, 4 * 2);
+      gl.enableVertexAttribArray(a_position_location);
+      gl.enableVertexAttribArray(a_color_location);
+      const type = drawType.value;
+      gl.drawArrays(gl[type], 0, points.length / 5);
+    }
+    drawRectangle(points)
+
+    drawType.onchange = function () {
+      console.log('绘制', drawType.value)
+      switch(drawType.value) {
+        case 'TRIANGLES':
+          points = [
+            -0.5, 0.3, 1.0, 0.0, 0.0,
+            -0.5, -0.3, 1.0, 0.0, 0.0,
+            0.5, -0.3, 1.0, 0.0, 0.0,
+            -0.5, 0.3, 0.0, 1.0, 0.0,
+            0.5, -0.3, 0.0, 1.0, 0.0,
+            0.5, 0.3, 0.0, 1.0, 0.0,
+          ]
+          break;
+        case 'TRIANGLE_STRIP':
+          points = [
+            -0.5, 0.3, 0.0, 1.0, 0.0,
+            -0.5, -0.3, 0.0, 1.0, 0.0,
+            0.5, 0.3, 0.0, 0.0, 1.0,
+            0.5, -0.3, 0.0, 0.0, 1.0,
+          ]
+          break;
+        case 'TRIANGLE_FAN':
+          points = [
+            0.0, 0.0, 0.0, 0.0, 1.0,
+            -0.5, 0.3, 0.0, 0.0, 1.0,
+            0.5, 0.3, 0.0, 1.0, 1.0,
+            0.5, -0.3, 0.0, 1.0, 1.0,
+            -0.5, -0.3, 1.0, 1.0, 0.0,
+            -0.5, 0.3, 1.0, 1.0, 0.0,
+          ];
+          break;
+      }
+      drawRectangle(points);
+    }
+    
+  </script>
+</body>
+</html>

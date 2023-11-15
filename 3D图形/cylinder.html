@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>绘制圆柱体/圆锥体</title>
+</head>
+<body>
+  <canvas id="canvas" width="400" height="400"></canvas>
+  <script src="../cuon-matrix.js"></script>
+  <script type="notjs" id="vertex">
+    attribute vec4 a_position;
+    attribute vec4 a_color;
+    varying vec4 v_color;
+    uniform mat4 u_matrix;
+    void main() {
+      gl_Position = u_matrix * a_position;
+      gl_PointSize = 10.0;
+      v_color = a_color;
+    }
+  </script>
+  <script type="notjs" id="fragment">
+    precision mediump float;
+    varying vec4 v_color;
+    void main() {
+      gl_FragColor = v_color;
+    }
+  </script>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const gl = canvas.getContext('webgl');
+    if (!gl) {
+      console.log('浏览器不支持webgl')
+    }
+
+    function createShader(gl, type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.log('着色器创建失败！', gl.getShaderInfoLog(shader));
+        return null;
+      }
+      return shader;
+    }
+
+    function createProgram(gl, vertex_shader, fragment_shader) {
+      const program = gl.createProgram();
+      gl.attachShader(program, vertex_shader);
+      gl.attachShader(program, fragment_shader);
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.log('着色器程序创建失败！');
+        return null;
+      }
+      return program;
+    }
+
+    const vertex_source = document.getElementById('vertex').innerText;
+    const fragment_source = document.getElementById('fragment').innerText;
+    const vertex_shader = createShader(gl, gl.VERTEX_SHADER, vertex_source);
+    const fragment_shader = createShader(gl, gl.FRAGMENT_SHADER, fragment_source);
+    const program = createProgram(gl, vertex_shader, fragment_shader);
+    gl.useProgram(program);
+
+    const a_position_location = gl.getAttribLocation(program, 'a_position'); // 获取变量存储地址
+    const a_color_location = gl.getAttribLocation(program, 'a_color');
+    const u_matrix_location = gl.getUniformLocation(program, 'u_matrix');
+
+    const buffer = gl.createBuffer(); // 创建空的缓冲区对象
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer); // 绑定缓冲区对象到ARRAY_BUFFER缓冲区
+    var indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+
+    // 假设横向和纵向平分一样
+    function drawCylinder(num, R, r, h) {
+      let points = [];
+      for (let i = -1; i <= num + 1; i++) { // 横向平分
+        let y = h / 2 - i * h / num; // 注意区分y轴正负方向的值（不是i*h/m）
+        let _r = r + (R - r) * i / num; // 第i个横切面的半径
+        if (i === -1) {
+          y = h / 2;
+          _r = 0; // 思考：为什么这里_r为0？？？ ---确定上下底面圆绘制的中心点坐标
+        }
+        if (i === num + 1) {
+          y = -h / 2;
+          _r = 0;
+        }
+        for(let j = 0; j <= num; j++) {
+          const x = _r * Math.cos(Math.PI * 2 * j / num);
+          const z = _r * Math.sin(Math.PI * 2 * j / num);
+          if (j % 2 === 0) {
+            points.push(x, y, z, 0.8, 0.1, 0.25);
+          } else if (j % 2 === 1) {
+            points.push(x, y, z, 0, 0.3, 0.77);
+          }
+        }
+      }
+      let indexes = [];
+      for(let i = 0; i <= num + 2; i++) { // 下标只能从0开始，不能为负;+2为上下底面索引
+        for (let j = 0; j <= num; j++) {
+          const v0 = i * num + j;
+          const v1 = i * num + j + 1;
+          const v2 = (i + 1) * num + j + 1;
+          const v3 = (i + 1) * num + j;
+          indexes.push(v0, v1, v2, v2, v3, v0);
+        }
+      }
+      // console.log(points.length, indexes.length) // 多了-1和num + 1，相当于多了17 * 2个点（上下底面：圆心 + 16个边缘点）
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexes), gl.STATIC_DRAW);
+      gl.vertexAttribPointer(a_position_location, 3, gl.FLOAT, false, 4 * 6, 0);
+      gl.vertexAttribPointer(a_color_location, 3,  gl.FLOAT, false, 4 * 6, 4 * 3);
+      gl.enableVertexAttribArray(a_position_location);
+      gl.enableVertexAttribArray(a_color_location);
+      gl.drawElements(gl.TRIANGLES, indexes.length, gl.UNSIGNED_SHORT, 0); // 这个得弄明白！！！还有为什么是indexes.length
+    }
+    gl.enable(gl.DEPTH_TEST); // 这是用来干嘛的？？？(圆台上有个斜缝，开启后斜缝消失了？？？)
+    // 背面隐藏
+    gl.enable(gl.CULL_FACE);
+
+    const viewMatrix = new Matrix4();
+    viewMatrix.setOrtho(-2, 2, -2, 2, 1, -1);
+    const objectMatrix = new Matrix4();
+    var deg = 2;
+    function rotate() {
+      objectMatrix.setRotate(deg, 0.5, 0.8, 0);
+      const matrix = viewMatrix.multiply(objectMatrix);
+      gl.uniformMatrix4fv(u_matrix_location, false, matrix.elements);
+      drawCylinder(16, 0.5, 0.3, 0.6); // 圆台
+      // drawCylinder(16, 0.3, 0.3, 0.7); // 圆柱体
+      // drawCylinder(16, 0.5, 0.0, 0.8); // 圆锥体（上底面半径为0时）
+      requestAnimationFrame(rotate);
+    }
+
+    rotate();
+    
+    
+  </script>
+</body>
+</html>

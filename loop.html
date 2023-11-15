@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>绘制圆环</title>
+</head>
+<body>
+  <canvas width="400" height="400" id="canvas"></canvas>
+  <script id="vertex" type="notjs">
+    attribute vec4 a_position;
+    void main() {
+      gl_Position = a_position;
+      gl_PointSize = 10.0;
+    }
+  </script>
+  <script id="fragment" type="notjs">
+    void main() {
+      gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+    }
+  </script>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const gl = canvas.getContext('webgl');
+    if (!gl) {
+      console.log('浏览器不支持webgl');
+    }
+
+    function createShader(gl, type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.log('着色器编译失败：', gl.getShaderInfoLog())
+        return null;
+      }
+      return shader;
+    }
+
+    function createProgram(gl, vertex_shader, fragment_shader) {
+      const program = gl.createProgram();
+      gl.attachShader(program, vertex_shader);
+      gl.attachShader(program, fragment_shader);
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.log('程序创建失败')
+        return null;
+      }
+      return program;
+    }
+
+    const vertex_source = document.getElementById('vertex').innerText;
+    const fragment_source = document.getElementById('fragment').innerText;
+    const vertex_shader = createShader(gl, gl.VERTEX_SHADER, vertex_source);
+    const fragment_shader = createShader(gl, gl.FRAGMENT_SHADER, fragment_source);
+
+    const program = createProgram(gl, vertex_shader, fragment_shader);
+    gl.useProgram(program);
+
+    const a_position = gl.getAttribLocation(program, "a_position");
+
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+
+    function drawLoop(number) {
+      // gl.clearColor(0, 0, 0, 1);
+      // gl.clear(gl.COLOR_BUFFER_BIT);
+      const points = [];
+      for (let i = 0; i <= number; i++) {
+        let big_x = Math.cos(Math.PI * 2.0 * i / number) * 0.5;
+        let big_y = Math.sin(Math.PI * 2.0 * i / number) * 0.5;
+        let small_x = Math.cos(Math.PI * 2.0 * i / number) * 0.3;
+        let small_y = Math.sin(Math.PI * 2.0 * i / number) * 0.3;
+        points.push(big_x, big_y, small_x, small_y);
+      }
+      for(let j = 0; j < points.length; j++) {
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+        gl.vertexAttribPointer(a_position, 2, gl.FLOAT, false, 4 * 2, 0);
+        gl.enableVertexAttribArray(a_position);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, points.length / 2);
+      }
+    }
+
+    const result = window.prompt('请输入圆环绘制时被分成的等份数：')
+    if (result && ~~result) {
+      drawLoop(result);
+    }
+  </script>
+</body>
+</html>

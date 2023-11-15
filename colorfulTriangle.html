@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>彩色三角形</title>
+</head>
+<body>
+  <canvas width="400" height="400" id="canvas"></canvas>
+  <script type="notjs" id="vertex">
+    attribute vec2 a_position;
+    attribute vec4 a_color;
+    varying vec4 v_color;
+    void main() {
+      gl_Position = vec4(a_position, 0.0, 1.0);
+      gl_PointSize = 10.0;
+      v_color = a_color;
+    }
+  </script>
+  <script type="notjs" id="fragment">
+    precision mediump float;
+    varying vec4 v_color;
+    void main() {
+      gl_FragColor = v_color;
+    }
+  </script>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const gl = canvas.getContext('webgl');
+    if (!gl) {
+      console.log('浏览器不支持webgl')
+    }
+
+    function createShader(gl, type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.log('着色器编译失败!', source);
+        return null;
+      }
+      return shader;
+    }
+
+    function createProgram(gl, vertex_shader, fragment_shader) {
+      const program = gl.createProgram();
+      gl.attachShader(program, vertex_shader);
+      gl.attachShader(program, fragment_shader);
+      gl.linkProgram(program);
+      if(!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.log('着色器程序创建失败！');
+        return null;
+      }
+      return program;
+    }
+
+    const vertex_source = document.getElementById('vertex').innerText;
+    const fragment_source = document.getElementById('fragment').innerText;
+    const vertex_shader = createShader(gl, gl.VERTEX_SHADER, vertex_source);
+    const fragment_shader = createShader(gl, gl.FRAGMENT_SHADER, fragment_source);
+    const program = createProgram(gl, vertex_shader, fragment_shader);
+    gl.useProgram(program);
+
+    const a_position_location = gl.getAttribLocation(program, 'a_position');
+    const a_color_location = gl.getAttribLocation(program, 'a_color');
+
+    const pointData = [
+      -0.25, 0.0, 0.0, 0.0, 1.0, 1.0,
+      0.25, 0.0, 0.0, 1.0, 0.0, 1.0,
+      0.0, 0.5, 1.0, 0.0, 0.0, 1.0
+    ];
+    const mixBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, mixBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pointData), gl.STATIC_DRAW);
+
+    // function draw() {
+      gl.clearColor(1, 1, 1, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.vertexAttribPointer(a_position_location, 2, gl.FLOAT, false, 6*4, 0);
+      gl.vertexAttribPointer(a_color_location, 4, gl.FLOAT, false, 6*4, 2*4);
+      gl.enableVertexAttribArray(a_position_location);
+      gl.enableVertexAttribArray(a_color_location);
+      gl.drawArrays(gl.TRIANGLES, 0, pointData.length / 5);
+    // }
+
+    // draw();
+  </script>
+</body>
+</html>
